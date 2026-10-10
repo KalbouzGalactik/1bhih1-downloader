@@ -1,11 +1,11 @@
 {
   "ticket": "7c3548bade",
-  "statut": "done",
+  "statut": "expired",
   "lien": "https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn",
   "format": "mp3",
   "qualite": "192",
   "debut": 1791664962,
-  "maj": 1791665050,
+  "maj": 1791665176,
   "titre": "test",
   "auteur": null,
   "total": 1,
@@ -13,18 +13,13 @@
   "octets": 6002002,
   "dossier": "2026-10-10_22h42_test",
   "expire": 1791666846,
-  "fichiers": [
-    {
-      "nom": "2026-10-10_22h42_test.zip",
-      "taille": 5974517,
-      "url": "https://github.com/KalbouzGalactik/1bhih1-downloader/releases/download/dl-7c3548bade/2026-10-10_22h42_test.zip"
-    }
-  ],
+  "fichiers": [],
   "erreur": null,
   "source": "spotify",
   "genre": "playlist",
   "duree": 82,
   "termine": 1791665046,
   "run": "38084725137",
-  "journal": "====================================================================\nDemande   : 7c3548bade\nLien      : https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn\nSource    : spotify / playlist (id 44U2CC8OvaUc1HnNLIR9Nn)\nFormat    : mp3 192\nLimite    : 200 pistes   |   espace disque libre : 87170 Mo\nSortie    : /home/runner/work/1bhih1-downloader/1bhih1-downloader/Output   |   conservation : 30 min\nCookies   : fournis (25 entrees)\n====================================================================\nNettoyage : tout ce qui date de plus de 30 min est supprime.\n  GitHub : 0 archive(s) supprimee(s), 0 etat(s) passe(s) a « expire », 0 ancien(s) etat(s) efface(s)\n  $ spotdl download https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn --output /home/runner/work/1bhih1-downloader/1bhih1-downloader/Output/_en-cours/7c3548bade/{artist} - {title}.{output-ext} --format ...\n    Processing query: https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn\n    Found 1 songs in test (Playlist)\n    YouTube Music returned no usable results for sting - if you love somebody set\n    them free after 3 attempts\n    Downloaded \"Sting - If You Love Somebody Set Them Free\":\n    https://www.youtube.com/watch?v=LSGl3d4KOMk\n\n  spotdl termine en 1 min 20 s (code 0)\n  dossier : Output/2026-10-10_22h42_test\n  1 fichiers, 5.7 Mo a archiver\n  1 archive(s) : 2026-10-10_22h42_test.zip (5.7 Mo)\n\nTERMINE. Les archives seront supprimees dans 30 min (au plus tard a la demande suivante).\n  2026-10-10_22h42_test.zip  (5.7 Mo)\n"
+  "journal": "",
+  "supprime": 1
 }
