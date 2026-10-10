@@ -1,20 +1,28 @@
 {
   "ticket": "7c3548bade",
-  "statut": "running",
+  "statut": "done",
   "lien": "https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn",
   "format": "mp3",
   "qualite": "192",
   "debut": 1791664962,
-  "maj": 1791665044,
+  "maj": 1791665048,
   "titre": "test",
   "auteur": null,
   "total": 1,
   "fait": 1,
   "octets": 6002002,
   "dossier": "2026-10-10_22h42_test",
-  "expire": null,
-  "fichiers": [],
+  "expire": 1791666846,
+  "fichiers": [
+    {
+      "nom": "2026-10-10_22h42_test.zip",
+      "taille": 5974517,
+      "url": "https://github.com/KalbouzGalactik/1bhih1-downloader/releases/download/dl-7c3548bade/2026-10-10_22h42_test.zip"
+    }
+  ],
   "erreur": null,
   "source": "spotify",
-  "genre": "playlist"
+  "genre": "playlist",
+  "duree": 82,
+  "termine": 1791665046
 }
