@@ -1,0 +1,20 @@
+{
+  "ticket": "441131864f",
+  "statut": "running",
+  "lien": "https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn",
+  "format": "mp3",
+  "qualite": "192",
+  "debut": 1791663726,
+  "maj": 1791663726,
+  "titre": null,
+  "auteur": null,
+  "total": null,
+  "fait": 0,
+  "octets": 0,
+  "dossier": null,
+  "expire": null,
+  "fichiers": [],
+  "erreur": null,
+  "source": "spotify",
+  "genre": "playlist"
+}
