@@ -1,20 +1,28 @@
 {
   "ticket": "441131864f",
-  "statut": "running",
+  "statut": "done",
   "lien": "https://open.spotify.com/playlist/44U2CC8OvaUc1HnNLIR9Nn",
   "format": "mp3",
   "qualite": "192",
   "debut": 1791663726,
-  "maj": 1791663787,
+  "maj": 1791663791,
   "titre": "test",
   "auteur": null,
   "total": 1,
   "fait": 1,
   "octets": 6002002,
   "dossier": "2026-10-10_22h22_test",
-  "expire": null,
-  "fichiers": [],
+  "expire": 1791665589,
+  "fichiers": [
+    {
+      "nom": "2026-10-10_22h22_test.zip",
+      "taille": 5974517,
+      "url": "https://github.com/KalbouzGalactik/1bhih1-downloader/releases/download/dl-441131864f/2026-10-10_22h22_test.zip"
+    }
+  ],
   "erreur": null,
   "source": "spotify",
-  "genre": "playlist"
+  "genre": "playlist",
+  "duree": 61,
+  "termine": 1791663789
 }
