@@ -1,0 +1,39 @@
+# Nettoyage manuel (ou automatique si tu decommentes « schedule ») :
+# supprime les archives et les etats qui ont depasse la duree de conservation.
+#
+# Sans ce fichier, tout fonctionne quand meme : chaque nouvelle demande nettoie deja
+# avant de commencer, et le site refuse de servir une archive expiree. Il ne sert que si tu
+# veux que les fichiers disparaissent de GitHub meme quand personne ne lance de demande.
+#
+# Attention : un nettoyage planifie consomme du quota Actions (environ 15 s par execution).
+# Il est gratuit et illimite sur un depot public ; sur un depot prive, prefere une execution toutes les heures.
+
+name: Nettoyage
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "17 * * * *"      # toutes les heures, a la minute 17
+
+# Groupe a part : un nettoyage n'annule jamais une demande de telechargement en attente.
+concurrency:
+  group: nettoyage
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  nettoyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_REF_NAME: ${{ github.ref_name }}
+      DL_SORTIE: Output
+      DL_TTL_MIN: ${{ vars.DL_TTL_MIN || '60' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Supprimer ce qui a expire
+        run: python3 scripts/dl_worker.py --purger

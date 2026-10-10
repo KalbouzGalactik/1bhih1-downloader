@@ -1,0 +1,194 @@
+# Telechargeur 1BHIH1 : lance par le site (Cloudflare Worker -> API GitHub).
+#
+# Chaque demande :
+#   1. supprime d'abord ce qui a depasse la duree de conservation (DL_TTL_MIN, 60 min par defaut) ;
+#   2. telecharge la playlist avec scripts/dl_worker.py ;
+#   3. la range dans  Output/<AAAA-MM-JJ_HHhMM>_<nom-de-la-playlist>/  puis en fait une archive ZIP ;
+#   4. depose l'archive dans une « release » GitHub (c'est elle que le site relaie) ;
+#   5. nettoie une derniere fois.
+# Le site n'heberge rien et ne telecharge rien lui-meme.
+#
+# A definir dans Settings > Secrets and variables > Actions :
+#   Secrets (facultatifs)  DL_CALLBACK_URL    adresse du site, ex. https://ton-site.pages.dev
+#                          DL_CALLBACK_TOKEN  meme valeur que DL_TOKEN cote Cloudflare
+#   Secret (facultatif)    YT_COOKIES         cookies YouTube au format Netscape, si YouTube bloque GitHub (voir README)
+#   Variable (facultative) DL_AUDIO           sources audio de spotdl (voir README) ; DL_RUNNER = self-hosted pour tourner chez toi
+#   Variable (facultative) DL_TTL_MIN         duree de conservation en minutes : 30, 60... (defaut 60)
+# Le jeton GitHub est fourni automatiquement (secrets.GITHUB_TOKEN), rien a creer.
+
+name: Telechargeur
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Lien YouTube ou Spotify"
+        required: true
+        type: string
+      ticket:
+        description: "Identifiant de la demande (fourni par le site)"
+        required: true
+        type: string
+      format:
+        description: "mp3, m4a, wav ou mp4"
+        required: false
+        default: "mp3"
+        type: string
+      qualite:
+        description: "128/192/320 (audio) ou 360/480/720/1080 (video) ; vide = defaut"
+        required: false
+        default: ""
+        type: string
+      limite:
+        description: "Nombre maximal de pistes"
+        required: false
+        default: "200"
+        type: string
+
+# Une seule demande a la fois : c'est ce qui cree la file d'attente annoncee sur le site.
+concurrency:
+  group: telechargeur
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  telecharger:
+    runs-on: ${{ vars.DL_RUNNER || 'ubuntu-latest' }}      # « self-hosted » pour tourner sur ta propre machine
+    timeout-minutes: 350
+    env:
+      # --- fourni automatiquement ---
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_REF_NAME: ${{ github.ref_name }}
+      # --- fourni par le site ---
+      DL_URL: ${{ inputs.url }}
+      DL_TICKET: ${{ inputs.ticket }}
+      DL_FORMAT: ${{ inputs.format }}
+      DL_QUALITE: ${{ inputs.qualite }}
+      DL_LIMITE: ${{ inputs.limite }}
+      # --- reglages ---
+      DL_SORTIE: Output                                  # dossier de sortie : un sous-dossier par demande
+      DL_TTL_MIN: ${{ vars.DL_TTL_MIN || '60' }}          # les musiques sont supprimees apres ce delai
+      DL_AUDIO: ${{ vars.DL_AUDIO }}                      # sources audio de spotdl, ex. « soundcloud youtube-music » (vide = defaut)
+      DL_FUSEAU: Europe/Brussels                          # fuseau utilise dans le nom des dossiers
+      DL_ZIP_MAX_MO: "150"                                # taille maximale d'une archive (decoupage automatique)
+      DL_DOSSIER_ETAT: .github/queue
+      # --- suivi en direct sur le site (facultatif) ---
+      DL_CALLBACK_URL: ${{ secrets.DL_CALLBACK_URL }}
+      DL_CALLBACK_TOKEN: ${{ secrets.DL_CALLBACK_TOKEN }}
+
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # YouTube exige un moteur JavaScript : sans Deno, chaque titre echoue (« YT-DLP download error »).
+      - name: Installer Deno (moteur JavaScript exige par YouTube)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Installer ffmpeg et les outils de telechargement
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade -r requirements.txt
+          echo "--- versions ---"
+          ffmpeg -version | head -1
+          deno --version | head -1
+          yt-dlp --version
+          spotdl --version
+          python -m pip show yt-dlp-ejs | head -2 || echo "ATTENTION : yt-dlp-ejs absent"
+          df -h / | tail -1
+
+      # Facultatif : cookies YouTube (secret YT_COOKIES), si YouTube bloque les serveurs GitHub.
+      - name: Preparer les cookies YouTube (facultatif)
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: |
+          if [ -n "$YT_COOKIES" ]; then
+            printf '%s\n' "$YT_COOKIES" > "$RUNNER_TEMP/yt-cookies.txt"
+            echo "DL_COOKIES=$RUNNER_TEMP/yt-cookies.txt" >> "$GITHUB_ENV"
+            echo "cookies YouTube : fournis"
+          else
+            echo "cookies YouTube : aucun (normal au debut)"
+          fi
+
+      - name: Nettoyer, telecharger, ranger dans Output, publier l'archive
+        id: dl
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python scripts/dl_worker.py 2>&1 | tee telechargement.log
+
+      - name: Publier l'etat de la demande
+        if: always()
+        run: |
+          set -e
+          git config user.name "1BHIH1 - telechargeur"
+          git config user.email "actions@users.noreply.github.com"
+          # le programme Python ecrit l'etat via l'API : on recupere d'abord la version la plus recente
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME" || true
+          python - <<'PY'
+          import json, os, pathlib, time
+          ticket = (os.environ.get("DL_TICKET") or "inconnu").strip()
+          journal = pathlib.Path("telechargement.log")
+          texte = journal.read_text(encoding="utf-8", errors="replace") if journal.exists() else ""
+          f = pathlib.Path(".github/queue") / f"{ticket}.json"
+          etat = {}
+          if f.exists():
+              try:
+                  etat = json.loads(f.read_text(encoding="utf-8"))
+              except Exception:
+                  etat = {}
+          if etat.get("statut") != "done":
+              etat.setdefault("ticket", ticket)
+              etat["statut"] = "failed"
+              etat.setdefault("lien", os.environ.get("DL_URL", ""))
+              etat.setdefault("format", os.environ.get("DL_FORMAT", ""))
+              etat.setdefault("qualite", os.environ.get("DL_QUALITE", ""))
+              # on remonte la derniere erreur utile du journal
+              lignes = [l for l in texte.splitlines() if "ERROR" in l or "ERREUR" in l or "ECHEC" in l]
+              etat["erreur"] = (lignes[-1].strip()[:300] if lignes else "le telechargement s'est arrete sans fichier")
+              etat["fichiers"] = []
+          etat["maj"] = int(time.time())
+          etat["run"] = os.environ.get("GITHUB_RUN_ID", "")
+          etat["journal"] = texte[-4000:]
+          f.parent.mkdir(parents=True, exist_ok=True)
+          f.write_text(json.dumps(etat, ensure_ascii=False, indent=2), encoding="utf-8")
+          print(f"etat publie pour {ticket} : {etat.get('statut')}")
+          PY
+          git add -A .github/queue
+          git commit -m "etat de la demande $DL_TICKET" || echo "rien a valider"
+          for i in 1 2 3 4 5; do
+            git pull --rebase --autostash origin "$GITHUB_REF_NAME" || git rebase --skip || true
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then echo "etat pousse"; exit 0; fi
+            sleep 5
+          done
+          echo "::warning::l'etat n'a pas pu etre pousse sur GitHub (le site ne verra pas la fin)"
+
+      - name: Nettoyage final
+        if: always()
+        continue-on-error: true
+        run: python scripts/dl_worker.py --purger
+
+      - name: Termine
+        if: always()
+        run: |
+          echo "Demande ${{ inputs.ticket }} : ${{ steps.dl.outcome }}"
+          tail -30 telechargement.log || true
+          if [ "${{ steps.dl.outcome }}" != "success" ]; then
+            echo "::error::le telechargement a echoue (voir le journal ci-dessus)"
+            exit 1
+          fi

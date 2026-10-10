@@ -1,0 +1,11 @@
+# Dependances du telechargeur 1BHIH1.
+# Installees automatiquement par le workflow .github/workflows/downloader.yml.
+# Le programme Python lui-meme n'utilise que la bibliotheque standard.
+#
+# yt-dlp[default] : indispensable. Depuis novembre 2025, YouTube exige un moteur JavaScript (Deno,
+# installe par le workflow) ET le composant yt-dlp-ejs, que fournit l'option « default ».
+# Sans eux : « Some YouTube downloads require Deno » puis « YT-DLP download error » sur chaque titre.
+
+yt-dlp[default]>=2025.11.12
+spotdl>=4.2.5
+mutagen>=1.47.0

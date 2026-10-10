@@ -1,0 +1,7 @@
+# Fichiers a ne pas mettre dans le depot
+Output/
+downloads/
+telechargement.log
+__pycache__/
+*.pyc
+.env
