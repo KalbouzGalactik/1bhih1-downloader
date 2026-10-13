@@ -1,0 +1,65 @@
+# Import d'une playlist Spotify pour l'onglet Musique du site.
+# Lancé par le Worker Cloudflare (jamais à la main, jamais en local).
+# Le résultat est écrit dans la branche « sp-data » (dossier sp/), que le Worker relit.
+name: Import playlist Spotify
+run-name: sp ${{ inputs.ticket }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Lien de la playlist ou de l'album Spotify
+        required: true
+      ticket:
+        description: Identifiant de la demande (donné par le site)
+        required: true
+
+concurrency:
+  group: spotify-import
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  importer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer spotDL et les modules
+        run: pip install spotdl ytmusicapi requests pyyaml
+
+      - name: Lire la playlist et trouver les vidéos YouTube
+        env:
+          URL: ${{ inputs.url }}
+          TICKET: ${{ inputs.ticket }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+        run: python scripts/sp_import.py "$URL" "$TICKET" --out out
+
+      - name: Publier le résultat (branche sp-data)
+        if: always()
+        env:
+          TICKET: ${{ inputs.ticket }}
+        run: |
+          set -e
+          [ -f "out/$TICKET.json" ] || exit 0
+          git config user.name "github-actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git fetch --depth=1 origin sp-data:sp-data 2>/dev/null; then
+            git branch sp-data "$(git commit-tree "$(git hash-object -t tree -w /dev/null)" -m 'branche des résultats')"
+          fi
+          git worktree add data sp-data
+          mkdir -p data/sp
+          cp "out/$TICKET.json" "data/sp/$TICKET.json"
+          find data/sp -name '*.json' -mmin +2880 -delete
+          cd data
+          git add -A
+          git commit -m "sp $TICKET" || true
+          git push origin HEAD:sp-data
