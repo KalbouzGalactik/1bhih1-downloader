@@ -131,7 +131,9 @@ def read_api(kind, pid, token):
     tracks, url, params = [], f"{API}/{kind}s/{pid}/" + ("items" if kind == "playlist" else "tracks"), {"limit": 50 if kind == "playlist" else 50}
     while url:
         r = api_get(url, token, params); params = None
-        if r.status_code == 403 and "/items" in url:       # playlist d'un autre : Spotify ne donne plus les titres
+        if r.status_code == 404 and url.endswith("/items"):       # anciens comptes / anciennes API : /tracks
+            url = url[:-6] + "/tracks"; r = api_get(url, token, {"limit": 50})
+        if r.status_code == 403 and ("/items" in url or "/tracks" in url) and kind == "playlist":       # playlist d'un autre : Spotify ne donne plus les titres
             raise RuntimeError("Spotify ne donne les titres que des playlists dont tu es propriétaire ou collaborateur. "
                                "Copie la playlist dans ton compte (Ajouter à une autre playlist → tout sélectionner) puis relance.")
         r.raise_for_status(); j = r.json()
@@ -158,9 +160,17 @@ def read_spotdl(link, cfg):
     if sd.get("audio"):
         cmd += ["--audio"] + [str(x) for x in sd["audio"]]
     print("  spotDL travaille (la recherche des vidéos est incluse, ça peut durer)…")
-    r = subprocess.run(cmd)
-    if r.returncode != 0 or not out.exists():
-        raise RuntimeError("spotDL a échoué (voir le message ci-dessus).")
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    tail = []
+    for line in p.stdout:
+        print(line, end="", flush=True)
+        if line.strip():
+            tail.append(line.strip())
+            tail = tail[-6:]
+    p.wait()
+    if p.returncode != 0 or not out.exists():
+        why = re.sub(r"\x1b\[[0-9;]*m", "", " | ".join(tail))[-320:]
+        raise RuntimeError("spotDL a échoué" + (" : " + why if why else "") + ".")
     songs = json.loads(out.read_text(encoding="utf-8"))
     if isinstance(songs, dict):
         songs = songs.get("songs") or []
