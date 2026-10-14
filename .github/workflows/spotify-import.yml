@@ -32,15 +32,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Installer spotDL et les modules
-        run: pip install spotdl ytmusicapi requests pyyaml
+      - name: Installer les modules
+        run: |
+          pip install ytmusicapi requests pyyaml
+          pip install spotifyscraper || echo "SpotifyScraper non installé : repli sur la page publique (100 titres)"
 
-      - name: Lire la playlist et trouver les vidéos YouTube
+      - name: Lire la playlist (API Spotify) et trouver les vidéos YouTube
         env:
           URL: ${{ inputs.url }}
           TICKET: ${{ inputs.ticket }}
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
         run: python scripts/sp_import.py "$URL" "$TICKET" --out out
 
       - name: Publier le résultat (branche sp-data)
